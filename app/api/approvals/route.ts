@@ -21,7 +21,7 @@ export async function GET() {
         try {
             console.log(`Attempting to fetch from: ${url}`);
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
             const res = await fetch(url, {
                 cache: "no-store",
