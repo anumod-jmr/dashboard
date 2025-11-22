@@ -276,7 +276,7 @@ export default function ApprovalsCockpit() {
                                     <tr>
                                         <th>System</th>
                                         <th>Module</th>
-                                        <th>Txn ID</th>
+
                                         <th>Account No</th>
                                         <th>Customer</th>
                                         <th>Amount</th>
@@ -301,7 +301,7 @@ export default function ApprovalsCockpit() {
                                                 </span>
                                             </td>
                                             <td className="font-medium text-slate-700">{row.module}</td>
-                                            <td className="font-mono text-xs text-slate-500">{row.txnId}</td>
+
                                             <td className="font-mono text-xs text-slate-600 truncate max-w-[100px]">{row.accountNumber}</td>
                                             <td className="font-medium text-slate-800 truncate max-w-[100px]">{row.customerName}</td>
                                             <td className="font-bold text-slate-900">{formatCurrency(row.amount)}</td>

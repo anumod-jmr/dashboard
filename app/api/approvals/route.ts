@@ -3,9 +3,8 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
     const urls = [
-        "http://192.168.3.245:8002/customer-service/api/v1/customers/pending",
-        "https://192.168.3.245:8002/customer-service/api/v1/customers/pending"
-    ];
+        "http://192.168.3.245:8002/customer-service/api/v1/customers/pending"
+    ]
 
     let data = null;
     const errors: string[] = [];
@@ -55,7 +54,7 @@ export async function GET() {
             sourceSystem: "FCUBS",                          // placeholder
             module: "CUSTOMER",                             // placeholder
             txnId: c.CUSTOMER_NO || "N/A",                  // use customer ID as txn
-            accountNumber: "-",                             // customer does not have account number
+            accountNumber: c.CUSTOMER_NO || "N/A",          // Map Customer No to Account No as requested
             customerName: c.CUSTOMER_NAME1 || "Unknown",
             amount: 0,                                      // placeholder
             branch: c.LOCAL_BRANCH || "000",
