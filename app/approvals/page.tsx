@@ -23,22 +23,49 @@ export default function ApprovalsCockpit() {
     const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
     const [selectedTxn, setSelectedTxn] = useState<string | null>(null);
 
-    // Mock chart data
-    const systemStats = [
-        { name: 'FCUBS', value: 60, color: 'bg-purple-500', width: '80%' },
-        { name: 'OBBRN', value: 45, color: 'bg-blue-500', width: '60%' },
-        { name: 'OBPM', value: 37, color: 'bg-teal-500', width: '50%' },
-    ];
+    // Derived state for charts
+    const systemCounts = approvals.reduce((acc, curr) => {
+        acc[curr.sourceSystem] = (acc[curr.sourceSystem] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+
+    const getSystemBadgeColor = (system: string) => {
+        const colors: { [key: string]: string } = {
+            FCUBS: "bg-purple-500",
+            OBBRN: "bg-blue-500",
+            OBPM: "bg-teal-500",
+            FCC: "bg-indigo-500",
+            WAR: "bg-orange-500",
+            CUSTOMER: "bg-pink-500" // Added for new module if needed, though sourceSystem is FCUBS in route.ts
+        };
+        return colors[system] || "bg-gray-500";
+    };
+
+    const systemStats = Object.keys(systemCounts).map(system => ({
+        name: system,
+        value: systemCounts[system],
+        color: getSystemBadgeColor(system),
+        width: `${(systemCounts[system] / approvals.length) * 100}%`
+    }));
 
     async function loadApprovals() {
         setLoading(true);
         try {
             const res = await fetch('/api/approvals', { cache: "no-store" });
             const data = await res.json();
-            setApprovals(data);
-            setLastRefresh(new Date());
-            if (data.length > 0 && !selectedTxn) {
-                setSelectedTxn(data[0].txnId);
+
+            if (Array.isArray(data)) {
+                setApprovals(data);
+                setLastRefresh(new Date());
+                if (data.length > 0 && !selectedTxn) {
+                    setSelectedTxn(data[0].txnId);
+                }
+            } else {
+                console.error("API Error:", data.error);
+                if (data.details) {
+                    console.error("API Error Details:", data.details);
+                }
+                setApprovals([]); // Fallback to empty list
             }
         } catch (error) {
             console.error("Failed to load approvals:", error);
@@ -61,16 +88,7 @@ export default function ApprovalsCockpit() {
         }).format(amount);
     };
 
-    const getSystemBadgeColor = (system: string) => {
-        const colors: { [key: string]: string } = {
-            FCUBS: "bg-purple-500",
-            OBBRN: "bg-blue-500",
-            OBPM: "bg-teal-500",
-            FCC: "bg-indigo-500",
-            WAR: "bg-orange-500"
-        };
-        return colors[system] || "bg-gray-500";
-    };
+
 
     return (
         <div className="min-h-screen flex flex-col bg-[#f3f4f6]">
@@ -284,8 +302,8 @@ export default function ApprovalsCockpit() {
                                             </td>
                                             <td className="font-medium text-slate-700">{row.module}</td>
                                             <td className="font-mono text-xs text-slate-500">{row.txnId}</td>
-                                            <td className="font-mono text-xs text-slate-600 truncate max-w-[100px]">{row.accountNumber || '12345500001'}</td>
-                                            <td className="font-medium text-slate-800 truncate max-w-[100px]">{row.customerName || 'Sarah Hamh'}</td>
+                                            <td className="font-mono text-xs text-slate-600 truncate max-w-[100px]">{row.accountNumber}</td>
+                                            <td className="font-medium text-slate-800 truncate max-w-[100px]">{row.customerName}</td>
                                             <td className="font-bold text-slate-900">{formatCurrency(row.amount)}</td>
                                             <td className="truncate max-w-[80px] text-slate-600">{row.branch}</td>
                                             <td className="text-xs text-slate-500">{row.initiator}</td>

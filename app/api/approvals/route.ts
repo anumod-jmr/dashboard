@@ -1,99 +1,77 @@
-import { NextRequest, NextResponse } from 'next/server';
+// app/api/approvals/route.ts
+import { NextResponse } from 'next/server';
 
-export async function GET(req: NextRequest) {
-    const { searchParams } = new URL(req.url);
-    const branch = searchParams.get("branch") || "001";
-    const moduleName = searchParams.get("module") || "PAY";
-
-    // Simulate slight delay for realistic API behavior
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    const mockData = [
-        {
-            sourceSystem: "FCUBS",
-            module: "CASA",
-            txnId: "011-123456",
-            accountNumber: "12345500001",
-            customerName: "Sarah Hamh",
-            amount: 150.00,
-            branch: "Main Street",
-            status: "Pending",
-            ageMinutes: 80,
-            priority: "High",
-            initiator: "000-121001",
-            timestamp: new Date(Date.now() - 80 * 60000).toISOString(),
-        },
-        {
-            sourceSystem: "FCUBS",
-            module: "CASA",
-            txnId: "011-123457",
-            accountNumber: "12345500002",
-            customerName: "Bet Baharn",
-            amount: 105.00,
-            branch: "Main Street",
-            status: "Pending",
-            ageMinutes: 80,
-            priority: "High",
-            initiator: "000-121001",
-            timestamp: new Date(Date.now() - 80 * 60000).toISOString(),
-        },
-        {
-            sourceSystem: "OBBRN",
-            module: "CASA",
-            txnId: "011-123458",
-            accountNumber: "12345500003",
-            customerName: "Customer Name",
-            amount: 77.00,
-            branch: "Main Street",
-            status: "Pending",
-            ageMinutes: 40,
-            priority: "High",
-            initiator: "000-121001",
-            timestamp: new Date(Date.now() - 40 * 60000).toISOString(),
-        },
-        {
-            sourceSystem: "OBPM",
-            module: "Loans",
-            txnId: "011-123459",
-            accountNumber: "12345500004",
-            customerName: "John Smith",
-            amount: 70.00,
-            branch: "Main Street",
-            status: "Pending",
-            ageMinutes: 10,
-            priority: "Normal",
-            initiator: "000-121001",
-            timestamp: new Date(Date.now() - 10 * 60000).toISOString(),
-        },
-        {
-            sourceSystem: "OBBRN",
-            module: "Loans",
-            txnId: "011-123460",
-            accountNumber: "12345500005",
-            customerName: "Customer Name",
-            amount: 103.00,
-            branch: "Main Street",
-            status: "Pending",
-            ageMinutes: 10,
-            priority: "Normal",
-            initiator: "000-121001",
-            timestamp: new Date(Date.now() - 10 * 60000).toISOString(),
-        },
-        {
-            sourceSystem: "OBPM",
-            module: "Loans",
-            txnId: "011-123461",
-            accountNumber: "12345500006",
-            customerName: "John Smith",
-            amount: 80.00,
-            branch: "Main Street",
-            status: "Pending",
-            ageMinutes: 22,
-            priority: "Normal",
-            initiator: "000-121001",
-            timestamp: new Date(Date.now() - 22 * 60000).toISOString(),
-        }
+export async function GET() {
+    const urls = [
+        "http://192.168.3.245:8002/customer-service/api/v1/customers/pending",
+        "https://192.168.3.245:8002/customer-service/api/v1/customers/pending"
     ];
 
-    return NextResponse.json(mockData);
+    let data = null;
+    const errors: string[] = [];
+
+    for (const url of urls) {
+        try {
+            console.log(`Attempting to fetch from: ${url}`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+            const res = await fetch(url, {
+                cache: "no-store",
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (res.ok) {
+                data = await res.json();
+                break; // Success, exit loop
+            } else {
+                const msg = `Failed to fetch from ${url}: ${res.status} ${res.statusText}`;
+                console.warn(msg);
+                errors.push(msg);
+            }
+        } catch (err: any) {
+            const msg = `Error fetching from ${url}: ${err.message || err}`;
+            console.warn(msg);
+            errors.push(msg);
+        }
+    }
+
+    if (!data) {
+        console.error("All fetch attempts failed:", errors);
+        return NextResponse.json(
+            {
+                error: "Failed to fetch approval/customer data",
+                details: errors
+            },
+            { status: 500 }
+        );
+    }
+
+    try {
+        // Convert customer JSON -> approval-like structure (placeholders)
+        const formatted = data.map((c: any) => ({
+            sourceSystem: "FCUBS",                          // placeholder
+            module: "CUSTOMER",                             // placeholder
+            txnId: c.CUSTOMER_NO || "N/A",                  // use customer ID as txn
+            accountNumber: "-",                             // customer does not have account number
+            customerName: c.CUSTOMER_NAME1 || "Unknown",
+            amount: 0,                                      // placeholder
+            branch: c.LOCAL_BRANCH || "000",
+            status: c.AUTH_STAT || "U",
+            ageMinutes: 5,                                  // placeholder
+            priority: "Normal",                             // placeholder
+            initiator: c.MAKER_ID || "SYSTEM",
+            timestamp: c.MAKER_DT_STAMP || new Date().toISOString()
+        }));
+
+        return NextResponse.json(formatted);
+    } catch (err) {
+        console.error("Data mapping error:", err);
+        return NextResponse.json(
+            { error: "Failed to map data structure" },
+            { status: 500 }
+        );
+    }
 }
