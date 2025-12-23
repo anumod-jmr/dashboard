@@ -284,6 +284,20 @@ export default function TestCockpit() {
         }).format(amount);
     };
 
+    const calculateAge = (dateString: string) => {
+        if (!dateString) return '0m';
+        const now = new Date();
+        const past = new Date(dateString);
+        const diffMs = now.getTime() - past.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+
+        if (diffMins < 60) return `${diffMins}m`;
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours}h ${diffMins % 60}m`;
+        const diffDays = Math.floor(diffHours / 24);
+        return `${diffDays}d ${diffHours % 24}h`;
+    };
+
     const handleApprove = async (txnId?: string) => {
         console.log("handleApprove called with txnId:", txnId, "selectedTxn:", selectedTxn);
         const targetTxnId = txnId || selectedTxn;
@@ -798,11 +812,11 @@ export default function TestCockpit() {
                                         <th>System</th>
                                         <th>Module</th>
 
-                                        <th>Account No</th>
+                                        <th>Reference ID</th>
                                         <th>Branch</th>
                                         <th>Initiator</th>
                                         <th>Status</th>
-                                        <th className="text-center">Priority</th>
+                                        <th className="text-center">Age</th>
                                         <th className="text-center">Actions</th>
                                     </tr>
                                 </thead>
@@ -820,7 +834,7 @@ export default function TestCockpit() {
                                             </td>
                                             <td className="font-medium text-slate-700">{row.module}</td>
 
-                                            <td className="font-mono text-xs text-slate-600 truncate max-w-[100px]">{row.accountNumber}</td>
+                                            <td className="font-mono text-xs text-slate-600 truncate max-w-[120px]" title={row.txnId}>{row.txnId}</td>
                                             <td className="truncate max-w-[80px] text-slate-600">{row.branch}</td>
                                             <td className="text-xs text-slate-500">{row.initiator}</td>
                                             <td>
@@ -828,10 +842,8 @@ export default function TestCockpit() {
                                                     {row.status}
                                                 </span>
                                             </td>
-                                            <td className="text-center">
-                                                <span className={`badge ${row.priority === 'High' ? 'badge-priority-high' : 'badge-priority-normal'}`}>
-                                                    {row.priority || 'Normal'}
-                                                </span>
+                                            <td className="text-center font-mono text-xs text-slate-500">
+                                                {calculateAge(row.timestamp)}
                                             </td>
                                             <td>
                                                 <div className="flex items-center justify-center gap-3">
@@ -904,12 +916,10 @@ export default function TestCockpit() {
                         {/* Transaction Details */}
                         <div className="dashboard-card p-6 animate-slide-in bg-white shadow-lg">
                             <div className="border-b border-gray-100 pb-4 mb-5">
-                                <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wide mb-1">Account no</h3>
+                                <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wide mb-1">Reference ID</h3>
                                 <div className="flex items-center justify-between">
                                     <p className="text-lg font-mono font-bold text-blue-600">
-                                        {selectedTxn
-                                            ? (approvals.find(a => a.txnId === selectedTxn)?.accountNumber || '---')
-                                            : '---'}
+                                        {selectedTxn || '---'}
                                     </p>
                                     <span className="badge badge-status text-[10px] px-2 py-0.5">Pending</span>
                                 </div>

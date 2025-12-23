@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
             ageMinutes: 0,
             priority: "Normal",
             initiator: item.MAKER_ID || "System",
-            timestamp: new Date().toISOString(),
+            timestamp: item.TXN_DATE || new Date().toISOString(),
             brn: item.BRANCH_CODE || "000",
             acc: item.ACCOUNT_NO || "N/A",
             ejLogId: item.REFERENCE_ID // Using REFERENCE_ID as identifier
