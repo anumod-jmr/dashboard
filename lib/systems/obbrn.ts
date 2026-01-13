@@ -19,8 +19,6 @@ export class ObbrnAdapter implements SystemAdapter {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json, text/javascript, */*; q=0.01',
-                'Connection': 'keep-alive',
                 'Content-Type': 'application/json',
                 // Correct AppID for Details Fetch as per legacy logic
                 'appId': 'SRVCMNTXN',
@@ -28,7 +26,6 @@ export class ObbrnAdapter implements SystemAdapter {
                 'branchDate': '2024-04-12',
                 'entityId': config.obbrn.entityId,
                 'userId': config.obbrn.defaultUser,
-                'multiEntityAdmin': 'N'
             }
         });
 
