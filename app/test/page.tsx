@@ -31,6 +31,7 @@ export default function TestCockpit() {
     const [showAllFields, setShowAllFields] = useState(false);
     const [notificationCount, setNotificationCount] = useState(0);
     const [isShaking, setIsShaking] = useState(false);
+    const [isApproving, setIsApproving] = useState(false);
     const firstLoad = useRef(true);
     const prevApprovalsLengthRef = useRef(0); // Restored for robust fallback detection
 
@@ -215,7 +216,7 @@ export default function TestCockpit() {
                         setTimeout(() => setIsShaking(false), 1000); // Reset shake after animation
 
                         // TRIGGER PUSH NOTIFICATION (Service Worker)
-                        if ("serviceWorker" in navigator) {
+                        if ("serviceWorker" in navigator && Notification.permission === "granted") {
                             navigator.serviceWorker.ready.then(reg => {
                                 reg.showNotification("New Approval Request", {
                                     body: newItems.length > 0
@@ -324,10 +325,7 @@ export default function TestCockpit() {
             return;
         }
 
-        const originalText = document.getElementById('approve-btn-text')?.innerText;
-        const btn = document.getElementById('approve-btn');
-        if (btn) btn.setAttribute('disabled', 'true');
-        if (originalText) document.getElementById('approve-btn-text')!.innerText = "Processing...";
+        setIsApproving(true);
 
         try {
             const res = await fetch('/api/test/approve', {
@@ -345,6 +343,7 @@ export default function TestCockpit() {
 
             if (res.ok && result.success) {
                 alert("Approval Successful!");
+                setShowDetailsModal(false); // Close modal only on success
                 loadApprovals();
             } else {
                 alert(`Approval Failed: ${result.error || "Unknown error"}`);
@@ -355,6 +354,7 @@ export default function TestCockpit() {
             alert("An error occurred during approval.");
             setDetailsData({ error: "An error occurred while fetching details." });
         } finally {
+            setIsApproving(false);
             setLoadingDetails(false);
         }
     };
@@ -804,7 +804,7 @@ export default function TestCockpit() {
                 {/* Main Content Grid - Consistent Gap */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* Table Section */}
-                    <div className="lg:col-span-9 dashboard-card overflow-hidden animate-fade-in flex flex-col shadow-lg">
+                    <div className="lg:col-span-12 dashboard-card overflow-hidden animate-fade-in flex flex-col shadow-lg">
                         <div className="overflow-x-auto flex-1">
                             <table className="jmr-table">
                                 <thead>
@@ -888,101 +888,8 @@ export default function TestCockpit() {
                     </div>
 
                     {/* Right Column - Aging Analysis & Transaction Details */}
-                    <div className="lg:col-span-3 flex flex-col gap-6 h-fit lg:sticky lg:top-6">
-                        {/* Approvals Aging */}
-                        <div className="dashboard-card p-6 animate-fade-in flex flex-col justify-between" style={{ animationDelay: '0.4s' }}>
-                            <div className="flex justify-between items-start mb-3">
-                                <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wide">Aging Analysis</h3>
-                                <div className="p-2 bg-slate-100 rounded-lg text-slate-400">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <div className="mt-auto">
-                                <div className="flex h-2.5 w-full rounded-full overflow-hidden mb-2">
-                                    <div className="bg-indigo-500 w-[50%]"></div>
-                                    <div className="bg-teal-500 w-[30%]"></div>
-                                    <div className="bg-amber-400 w-[20%]"></div>
-                                </div>
-                                <div className="flex justify-between text-[9px] text-slate-500 font-semibold uppercase tracking-wider">
-                                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-indigo-500"></div>0-5m</div>
-                                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-teal-500"></div>5-10m</div>
-                                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-400"></div>&gt;10m</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Transaction Details */}
-                        <div className="dashboard-card p-6 animate-slide-in bg-white shadow-lg">
-                            <div className="border-b border-gray-100 pb-4 mb-5">
-                                <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wide mb-1">Reference ID</h3>
-                                <div className="flex items-center justify-between">
-                                    <p className="text-lg font-mono font-bold text-blue-600">
-                                        {selectedTxn || '---'}
-                                    </p>
-                                    <span className="badge badge-status text-[10px] px-2 py-0.5">Pending</span>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3 mb-6">
-                                <div className="group border border-gray-200 rounded-lg overflow-hidden hover:border-blue-300 transition-colors">
-                                    <button className="w-full px-4 py-3 bg-gray-50 group-hover:bg-blue-50/30 flex justify-between items-center text-xs font-semibold text-slate-700 transition-colors">
-                                        Audit Trail
-                                        <svg className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    </button>
-                                </div>
-                                <div className="group border border-gray-200 rounded-lg overflow-hidden hover:border-blue-300 transition-colors">
-                                    <button className="w-full px-4 py-3 bg-gray-50 group-hover:bg-blue-50/30 flex justify-between items-center text-xs font-semibold text-slate-700 transition-colors">
-                                        Remarks History
-                                        <svg className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        id="approve-btn"
-                                        onClick={() => handleApprove()}
-                                        className="col-span-2 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        <span id="approve-btn-text">Approve</span>
-                                    </button>
-                                    <button className="bg-white border border-gray-300 text-slate-600 hover:bg-gray-50 hover:text-slate-800 font-semibold py-2.5 rounded-lg shadow-sm transition-colors text-xs uppercase tracking-wide">
-                                        Reject
-                                    </button>
-                                    <button className="bg-white border border-gray-300 text-slate-600 hover:bg-gray-50 hover:text-slate-800 font-semibold py-2.5 rounded-lg shadow-sm transition-colors text-xs uppercase tracking-wide">
-                                        Hold
-                                    </button>
-                                </div>
-
-                                <div className="relative pt-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block">Supervisor Comments</label>
-                                    <textarea
-                                        className="w-full border border-gray-200 rounded-lg p-3 text-xs text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none h-24 bg-gray-50 focus:bg-white transition-colors"
-                                        placeholder="Enter your remarks here..."
-                                    ></textarea>
-                                    <div className="absolute bottom-2 right-2 w-2.5 h-2.5 border-r-2 border-b-2 border-gray-300 cursor-se-resize"></div>
-                                </div>
-
-                                {/* Debug Section */}
-                                <div className="mt-4 p-3 bg-gray-100 rounded-lg border border-gray-200">
-                                    <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-2">Debug Data (Raw)</h4>
-                                    <pre className="text-[10px] text-slate-600 overflow-x-auto whitespace-pre-wrap font-mono max-h-40 overflow-y-auto">
-                                        {selectedTxn && JSON.stringify(approvals.find(a => a.txnId === selectedTxn), null, 2)}
-                                    </pre>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {/* Right Column - Aging Analysis & Transaction Details */}
+                    {/* Removed as per request */}
                 </div>
             </main>
             {/* Details Modal */}
@@ -1055,16 +962,23 @@ export default function TestCockpit() {
                                 Close
                             </button>
                             <button
-                                onClick={() => {
-                                    setShowDetailsModal(false);
-                                    handleApprove();
-                                }}
-                                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                                disabled={isApproving}
+                                onClick={() => handleApprove()}
+                                className={`px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2 ${isApproving ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-                                </svg>
-                                Approve Now
+                                {isApproving ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        Approving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Approve Now
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>

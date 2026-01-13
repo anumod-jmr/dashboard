@@ -1,21 +1,17 @@
-// app/api/test/route.ts
 import { NextResponse, NextRequest } from 'next/server';
+import { config } from '@/lib/config';
+import { httpClient } from '@/lib/http-client';
+import { Approval } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
-    const url = "http://192.168.3.245:8002/customer-service/api/v1/customers/pending-items";
+    const url = config.general.pendingApiUrl;
 
     try {
-        const res = await fetch(url, { cache: "no-store" });
-
-        if (!res.ok) {
-            throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
-        }
-
-        const data = await res.json();
+        // Use centralized http client
+        const data = await httpClient<any[]>(url);
 
         // Map new response format to Approval interface
-        // Map new response format to Approval interface
-        let formatted = data.map((item: any) => ({
+        let formatted: Approval[] = data.map((item: any) => ({
             sourceSystem: (item.SYSTEM_NAME || "Unknown").toUpperCase(),
             module: (item.MODULE_NAME || "Unknown").toUpperCase(),
             txnId: item.REFERENCE_ID || `TXN-${Math.random()}`,
@@ -30,7 +26,7 @@ export async function GET(request: NextRequest) {
             timestamp: item.TXN_DATE || new Date().toISOString(),
             brn: item.BRANCH_CODE || "000",
             acc: item.ACCOUNT_NO || "N/A",
-            ejLogId: item.REFERENCE_ID // Using REFERENCE_ID as identifier
+            ejLogId: item.REFERENCE_ID
         }));
 
         // Apply Filters
@@ -41,22 +37,22 @@ export async function GET(request: NextRequest) {
         const status = searchParams.get('status');
 
         if (system && system !== '(All)') {
-            formatted = formatted.filter((item: any) =>
+            formatted = formatted.filter((item) =>
                 (item.sourceSystem || "").toLowerCase() === system.toLowerCase()
             );
         }
         if (module && module !== '(All)') {
-            formatted = formatted.filter((item: any) =>
+            formatted = formatted.filter((item) =>
                 (item.module || "").toLowerCase() === module.toLowerCase()
             );
         }
         if (branch && branch !== '(All)') {
-            formatted = formatted.filter((item: any) =>
+            formatted = formatted.filter((item) =>
                 String(item.branch).toLowerCase() === String(branch).toLowerCase()
             );
         }
         if (status && status !== '(All)' && status !== '(Pending)') {
-            formatted = formatted.filter((item: any) =>
+            formatted = formatted.filter((item) =>
                 (item.status || "").toLowerCase() === status.toLowerCase()
             );
         }
