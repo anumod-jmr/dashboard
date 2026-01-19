@@ -1,96 +1,102 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export default function ServiceWorkerManager() {
-    const [permission, setPermission] = useState<NotificationPermission | 'granted'>('default');
 
     useEffect(() => {
-        if (typeof window !== 'undefined' && 'Notification' in window) {
-            setPermission(Notification.permission);
+        if (typeof window === 'undefined') return;
+
+        // 1. Register Service Worker on mount
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("/sw.js").catch((err) => console.error("SW Register Error:", err));
+        }
+
+        // 2. Logic to attempt subscription if permission is granted
+        const attemptSubscription = async () => {
+            if (!("serviceWorker" in navigator)) return;
+
+            // Only subscribe if permission is explicitly granted
+            if (Notification.permission !== 'granted') return;
+
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                await subscribeToPush(registration);
+            } catch (error) {
+                console.error("Subscription attempt failed:", error);
+            }
+        };
+
+        // 3. Initial check on load
+        attemptSubscription();
+
+        // 4. Listen for permission changes (e.g. user clicking the 'eye' / lock icon)
+        if ('permissions' in navigator) {
+            navigator.permissions.query({ name: 'notifications' as PermissionName }).then((status) => {
+                status.onchange = () => {
+                    // Automatically subscribe if the user changes setting to 'granted'
+                    if (status.state === 'granted') {
+                        console.log("Permission granted via browser settings. Subscribing...");
+                        attemptSubscription();
+                    }
+                };
+            }).catch(() => {
+                // Permissions API might not support 'notifications' on all browsers
+            });
         }
     }, []);
 
-    const subscribeToPush = async () => {
-        if (!("serviceWorker" in navigator)) return;
-
+    const subscribeToPush = async (registration: ServiceWorkerRegistration) => {
         try {
-            const registration = await navigator.serviceWorker.ready;
-
-            // Public Key from Env
             const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-
             if (!publicKey) {
                 console.warn("VAPID Public Key not found in environment variables");
                 return;
             }
 
+            const convertedKey = urlBase64ToUint8Array(publicKey);
+            if (!convertedKey) return; // Stop if key conversion failed
+
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(publicKey)
+                applicationServerKey: convertedKey
             });
 
             console.log("Push Subscription Successful:", JSON.stringify(subscription));
-
             // TODO: Send 'subscription' to your backend API to save it
-            // await fetch('/api/subscribe', { method: 'POST', body: JSON.stringify(subscription) ... });
 
-            setPermission('granted');
-            alert("Notifications Enabled! Check console for subscription object.");
         } catch (error) {
+            // Don't alert the user, just log
             console.error("Subscription failed:", error);
-            alert("Failed to subscribe. See console.");
         }
     };
 
-    const requestPermission = async () => {
-        if (!("Notification" in window)) {
-            alert("This browser does not support notifications.");
-            return;
-        }
-
-        const result = await Notification.requestPermission();
-        setPermission(result);
-
-        if (result === 'granted') {
-            subscribeToPush();
-        }
-    };
-
-    // Helper to convert VAPID key
     function urlBase64ToUint8Array(base64String: string) {
-        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding)
-            .replace(/-/g, '+')
-            .replace(/_/g, '/');
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-            outputArray[i] = rawData.charCodeAt(i);
+        // Validation: Check for obviously malformed keys (like copied truncated keys)
+        if (base64String.includes('...') || base64String.length < 20) {
+            console.error("VAPID Public Key appears to be invalid or truncated (contains '...'). Please check your .env.local file.");
+            return null;
         }
-        return outputArray;
+
+        try {
+            const trimmedBase64String = base64String.trim();
+            const padding = '='.repeat((4 - trimmedBase64String.length % 4) % 4);
+            const base64 = (trimmedBase64String + padding)
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        } catch (e) {
+            console.error("Failed to convert VAPID key. It may be malformed or truncated.", e);
+            return null;
+        }
     }
 
-    // Register SW on mount
-    useEffect(() => {
-        if ("serviceWorker" in navigator) {
-            navigator.serviceWorker.register("/sw.js").catch(console.error);
-        }
-    }, []);
-
-    if (permission === 'granted') return null; // Hidden if already has permission
-
-    return (
-        <div className="fixed bottom-4 right-4 z-50 animate-bounce-in">
-            <button
-                onClick={requestPermission}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-full shadow-lg flex items-center gap-2 transition-transform hover:scale-105"
-            >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                Enable Alerts
-            </button>
-        </div>
-    );
+    // No visible UI anymore
+    return null;
 }

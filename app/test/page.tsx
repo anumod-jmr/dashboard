@@ -44,6 +44,10 @@ function TestCockpitContent() {
     const firstLoad = useRef(true);
     const prevApprovalsLengthRef = useRef(0);
 
+    // Global Notification Toggle
+    const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(true);
+    const isNotificationsEnabledRef = useRef(true); // Ref to hold fresh state for interval
+
     // Filter State
     const [tempSystem, setTempSystem] = useState('(All)');
     const [tempModule, setTempModule] = useState('(All)');
@@ -225,7 +229,7 @@ function TestCockpitContent() {
                     // 2. Strict Detection: Only notify if we have actual NEW IDs
                     const hasNewContent = newItems.length > 0;
 
-                    if (hasNewContent) {
+                    if (isNotificationsEnabledRef.current && hasNewContent) {
                         // Play Sound & Visual Effect
                         playNotificationSound();
                         setIsShaking(true);
@@ -246,8 +250,10 @@ function TestCockpitContent() {
                                 } as any);
                             }).catch(err => console.error("SW Notification failed", err));
                         }
+                    }
 
-                        // Add to notifications dropdown
+                    // Always add to notification history/badge, even if "Alerts" are off
+                    if (hasNewContent) {
                         const newNotifs = newItems.map((item: Approval) => ({
                             id: Math.random().toString(36).substr(2, 9),
                             text: `New request with Reference ID ${item.txnId}`,
@@ -553,6 +559,10 @@ function TestCockpitContent() {
     };
 
 
+
+
+    // ... existing code ...
+
     return (
         <div className="min-h-screen flex flex-col bg-[#f3f4f6]">
             {/* Top Header */}
@@ -574,6 +584,24 @@ function TestCockpitContent() {
                                 {activeUser.substring(0, 2).toUpperCase()}
                             </div>
                         </div>
+                        <div className="flex items-center gap-3 mr-2">
+                            <label className="relative inline-flex items-center cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={isNotificationsEnabled}
+                                    onChange={(e) => {
+                                        setIsNotificationsEnabled(e.target.checked);
+                                        isNotificationsEnabledRef.current = e.target.checked;
+                                    }}
+                                />
+                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
+                                <span className="ml-2 text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-blue-600 transition-colors hidden sm:block">
+                                    {isNotificationsEnabled ? 'Alerts On' : 'Alerts Off'}
+                                </span>
+                            </label>
+                        </div>
+
                         <div className="relative">
                             <button
                                 onClick={() => {
