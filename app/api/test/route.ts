@@ -9,10 +9,29 @@ export async function GET(request: NextRequest) {
     const module = searchParams.get('module');
     const branch = searchParams.get('branch');
     const status = searchParams.get('status');
+    const user = searchParams.get('user');
 
     try {
         // Fetch ALL data from backend (no filtering params passed)
-        const data = await httpClient<any[]>(config.general.pendingApiUrl);
+        const rawData = await httpClient<any[]>(config.general.pendingApiUrl);
+
+        // Filter for OBBRN User Check (Frontend Side as requested)
+        let data = rawData;
+        console.log(`[API] Filtering - User Param: "${user}"`);
+
+        if (user) {
+            data = rawData.filter((item: any) => {
+                // For OBBRN, strictly check AUTHORISER matches logged-in user
+                if (item.SYSTEM_NAME === 'OBBRN') {
+                    // Handle potential nulls/undefined safely
+                    const authUser = item.AUTHORISER || "";
+                    const isMatch = authUser == user; // Use loose equality just in case of type mismatch (string vs number)
+                    return isMatch;
+                }
+                // For other systems (FCUBS, OBPM), show all (or apply other logic if needed)
+                return true;
+            });
+        }
 
         // Map response format to Approval interface
         let formatted: Approval[] = data.map((item: any) => ({

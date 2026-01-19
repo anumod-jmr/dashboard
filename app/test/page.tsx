@@ -61,6 +61,10 @@ function TestCockpitContent() {
         status: '(Pending)'
     });
 
+    // Ref to hold the active user to avoid stale closures in setInterval
+    const activeUserRef = useRef(initialUser);
+
+
     // Derived state for charts
     const systemCounts = approvals.reduce((acc, curr) => {
         acc[curr.sourceSystem] = (acc[curr.sourceSystem] || 0) + 1;
@@ -195,6 +199,9 @@ function TestCockpitContent() {
             if (branch !== '(All)') queryParams.append('branch', branch);
             if (status !== '(Pending)' && status !== '(All)') queryParams.append('status', status);
 
+            // Append current user for OBBRN filtering
+            if (activeUserRef.current) queryParams.append('user', activeUserRef.current);
+
             const res = await fetch(`/api/test?${queryParams.toString()}`, { cache: "no-store" });
             const data = await res.json();
 
@@ -282,7 +289,7 @@ function TestCockpitContent() {
 
     useEffect(() => {
         loadApprovals();
-        const interval = setInterval(loadApprovals, 30000);
+        const interval = setInterval(loadApprovals, 5000);
         return () => clearInterval(interval);
     }, []);
 
@@ -344,7 +351,8 @@ function TestCockpitContent() {
                     brn,
                     acc,
                     ejLogId: txn.ejLogId,
-                    system: txn.sourceSystem
+                    system: txn.sourceSystem,
+                    userId: activeUser
                 })
             });
 

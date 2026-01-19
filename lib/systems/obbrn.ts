@@ -73,7 +73,7 @@ export class ObbrnAdapter implements SystemAdapter {
         // For now, let's assume the Token is the primary mechanism as per standard JWT. 
         // If Cookie is critical, we might need to adjust authenticate to return it.
 
-        const authResult = await this.authenticateFullResponse(config.obbrn.appIdApprove, brn || '000');
+        const authResult = await this.authenticateFullResponse(config.obbrn.appIdApprove, brn || '000', params.userId);
         const approveToken = authResult.token;
         const cookie = authResult.cookie;
 
@@ -101,19 +101,15 @@ export class ObbrnAdapter implements SystemAdapter {
     }
 
     // Helper to just get token
-    private async authenticate(appId: string, branch: string): Promise<string> {
-        const res = await this.authenticateFullResponse(appId, branch);
+    private async authenticate(appId: string, branch: string, dynamicUser?: string): Promise<string> {
+        const res = await this.authenticateFullResponse(appId, branch, dynamicUser);
         return res.token;
     }
 
     // Full Auth to capture Cookie if needed
-    private async authenticateFullResponse(appId: string, branch: string): Promise<{ token: string, cookie: string | null }> {
+    private async authenticateFullResponse(appId: string, branch: string, dynamicUser?: string): Promise<{ token: string, cookie: string | null }> {
         const authUrl = config.obbrn.authUrl;
-        console.log(`[OBBRN] Authenticating for ${appId}...`);
-
-        // We need raw response for headers, so we use fetch directly or modify httpClient.
-        // For simplicity here, I'll use fetch directly since this is a specific auth edge case with cookies.
-        // But I should use the config for SSL rejection.
+        console.log(`[OBBRN] Authenticating for ${appId} as ${dynamicUser || config.obbrn.defaultUser}...`);
 
         if (config.general.nodeTlsRejectUnauthorized === '0') {
             process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -125,7 +121,7 @@ export class ObbrnAdapter implements SystemAdapter {
                 'Content-Type': 'application/json',
                 'appId': appId,
                 'branchCode': branch,
-                'userId': config.obbrn.defaultUser,
+                'userId': dynamicUser || config.obbrn.defaultUser,
                 'entityId': config.obbrn.entityId,
                 'sourceCode': config.obbrn.sourceCode
             },
