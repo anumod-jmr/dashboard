@@ -23,7 +23,6 @@ export class ObbrnAdapter implements SystemAdapter {
                 // Correct AppID for Details Fetch as per legacy logic
                 'appId': 'SRVCMNTXN',
                 'branchCode': brn || '000',
-                'branchDate': '2024-04-12',
                 'entityId': config.obbrn.entityId,
                 'userId': config.obbrn.defaultUser,
             }
@@ -61,7 +60,7 @@ export class ObbrnAdapter implements SystemAdapter {
             subScreenClass: logData.subScreenClass || "",
             ejId: ejLogId,
             txnRefNumber: logData.txnRefNo || logData.txnRefNumber || "",
-            supervisorId: config.obbrn.defaultUser
+            supervisorId: params.userId || config.obbrn.defaultUser
         };
 
         console.log("[OBBRN] Constructed Payload:", approvalPayload);
@@ -83,7 +82,7 @@ export class ObbrnAdapter implements SystemAdapter {
             'Authorization': `Bearer ${approveToken}`,
             'appId': config.obbrn.appIdApprove,
             'branchCode': brn || '000',
-            'userId': config.obbrn.defaultUser,
+            'userId': params.userId || config.obbrn.defaultUser,
             'entityId': config.obbrn.entityId
         };
         if (cookie) {

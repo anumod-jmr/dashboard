@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from 'next/navigation';
+
+import { useEffect, useState, useRef, Suspense } from "react";
+
+// ... (Interface Approval remains same) ...
 
 interface Approval {
     sourceSystem: string;
@@ -20,7 +24,12 @@ interface Approval {
     ejLogId?: string;
 }
 
-export default function TestCockpit() {
+function TestCockpitContent() {
+    const searchParams = useSearchParams();
+    // Get user from URL (e.g. ?user=ALLU) or fallback to config/default
+    const initialUser = searchParams.get('user') || "TRAINEE2";
+    const [activeUser, setActiveUser] = useState(initialUser);
+
     const [approvals, setApprovals] = useState<Approval[]>([]);
     const [loading, setLoading] = useState(true);
     const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
@@ -33,7 +42,7 @@ export default function TestCockpit() {
     const [isShaking, setIsShaking] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
     const firstLoad = useRef(true);
-    const prevApprovalsLengthRef = useRef(0); // Restored for robust fallback detection
+    const prevApprovalsLengthRef = useRef(0);
 
     // Filter State
     const [tempSystem, setTempSystem] = useState('(All)');
@@ -273,7 +282,7 @@ export default function TestCockpit() {
 
     useEffect(() => {
         loadApprovals();
-        const interval = setInterval(loadApprovals, 5000);
+        const interval = setInterval(loadApprovals, 30000);
         return () => clearInterval(interval);
     }, []);
 
@@ -550,11 +559,11 @@ export default function TestCockpit() {
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-3">
                             <div className="text-right hidden lg:block">
-                                <div className="text-sm font-bold text-white">Sarah Lee</div>
-                                <div className="text-xs text-slate-400">Senior Supervisor | Main Street</div>
+                                <div className="text-sm font-bold text-white">{activeUser}</div>
+                                <div className="text-xs text-slate-400">Logged in User</div>
                             </div>
                             <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold border-2 border-white/10 shadow-sm">
-                                SL
+                                {activeUser.substring(0, 2).toUpperCase()}
                             </div>
                         </div>
                         <div className="relative">
@@ -986,5 +995,13 @@ export default function TestCockpit() {
             )
             }
         </div >
+    );
+}
+
+export default function TestCockpit() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <TestCockpitContent />
+        </Suspense>
     );
 }
