@@ -42,3 +42,5 @@ next-env.d.ts
 
 #war build output
 dashboard-service
+
+VW_UNIFIED_PENDING_ITEMS.sql
