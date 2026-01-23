@@ -1,96 +1,141 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 export default function ServiceWorkerManager() {
-    const [permission, setPermission] = useState<NotificationPermission | 'granted'>('default');
 
-    useEffect(() => {
-        if (typeof window !== 'undefined' && 'Notification' in window) {
-            setPermission(Notification.permission);
-        }
-    }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
-    const subscribeToPush = async () => {
-        if (!("serviceWorker" in navigator)) return;
+    const isLocalhost =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
 
-        try {
-            const registration = await navigator.serviceWorker.ready;
+    const isProduction = process.env.NODE_ENV === "production";
 
-            // Public Key from Env
-            const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    const canUseServiceWorker =
+      "serviceWorker" in navigator && (isLocalhost || isProduction);
 
-            if (!publicKey) {
-                console.warn("VAPID Public Key not found in environment variables");
-                return;
-            }
+    // ----------------------------
+    // Register Service Worker
+    // ----------------------------
+    const registerServiceWorker = async () => {
+      if (!canUseServiceWorker) {
+        console.warn("Service Worker skipped (invalid SSL or dev environment)");
+        return;
+      }
 
-            const subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(publicKey)
-            });
-
-            console.log("Push Subscription Successful:", JSON.stringify(subscription));
-
-            // TODO: Send 'subscription' to your backend API to save it
-            // await fetch('/api/subscribe', { method: 'POST', body: JSON.stringify(subscription) ... });
-
-            setPermission('granted');
-            alert("Notifications Enabled! Check console for subscription object.");
-        } catch (error) {
-            console.error("Subscription failed:", error);
-            alert("Failed to subscribe. See console.");
-        }
+      try {
+        await navigator.serviceWorker.register("/sw.js");
+        console.log("Service Worker registered successfully");
+      } catch (error) {
+        console.error("Service Worker registration failed:", error);
+      }
     };
 
-    const requestPermission = async () => {
-        if (!("Notification" in window)) {
-            alert("This browser does not support notifications.");
-            return;
+    // ----------------------------
+    // Try Push Subscription
+    // ----------------------------
+    const attemptSubscription = async () => {
+      if (!canUseServiceWorker) return;
+      if (!("Notification" in window)) return;
+      if (Notification.permission !== "granted") return;
+
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+
+        if (!registration) {
+          console.warn("No Service Worker registration found");
+          return;
         }
 
-        const result = await Notification.requestPermission();
-        setPermission(result);
+        await subscribeToPush(registration);
 
-        if (result === 'granted') {
-            subscribeToPush();
-        }
+      } catch (error) {
+        console.error("Push subscription attempt failed:", error);
+      }
     };
 
-    // Helper to convert VAPID key
-    function urlBase64ToUint8Array(base64String: string) {
-        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding)
-            .replace(/-/g, '+')
-            .replace(/_/g, '/');
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-            outputArray[i] = rawData.charCodeAt(i);
-        }
-        return outputArray;
+    // ----------------------------
+    // Permission Change Listener
+    // ----------------------------
+    const setupPermissionListener = async () => {
+      if (!("permissions" in navigator)) return;
+
+      try {
+        const status = await navigator.permissions.query({
+          name: "notifications",
+        } as PermissionDescriptor);
+
+        status.onchange = () => {
+          if (status.state === "granted") {
+            console.log("Notification permission granted via browser settings");
+            attemptSubscription();
+          }
+        };
+      } catch {
+        // Not supported everywhere
+      }
+    };
+
+    // ----------------------------
+    // Initialize
+    // ----------------------------
+    registerServiceWorker();
+    attemptSubscription();
+    setupPermissionListener();
+
+  }, []);
+
+  // ----------------------------
+  // Push Subscribe Function
+  // ----------------------------
+  const subscribeToPush = async (
+    registration: ServiceWorkerRegistration
+  ) => {
+    try {
+      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+      if (!publicKey) {
+        console.warn("VAPID public key missing");
+        return;
+      }
+
+      const convertedKey = urlBase64ToUint8Array(publicKey);
+      if (!convertedKey) return;
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedKey,
+      });
+
+      console.log("Push Subscription Success");
+      console.log(JSON.stringify(subscription));
+
+    } catch (error) {
+      console.error("Push subscription failed:", error);
     }
+  };
 
-    // Register SW on mount
-    useEffect(() => {
-        if ("serviceWorker" in navigator) {
-            navigator.serviceWorker.register("/sw.js").catch(console.error);
-        }
-    }, []);
+  // ----------------------------
+  // Base64 Key Converter
+  // ----------------------------
+  const urlBase64ToUint8Array = (base64String: string) => {
+    try {
+      const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
 
-    if (permission === 'granted') return null; // Hidden if already has permission
+      const base64 = (base64String + padding)
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
 
-    return (
-        <div className="fixed bottom-4 right-4 z-50 animate-bounce-in">
-            <button
-                onClick={requestPermission}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-full shadow-lg flex items-center gap-2 transition-transform hover:scale-105"
-            >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                Enable Alerts
-            </button>
-        </div>
-    );
+      const rawData = window.atob(base64);
+      return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+
+    } catch (error) {
+      console.error("VAPID key conversion error:", error);
+      return null;
+    }
+  };
+
+  return null;
 }

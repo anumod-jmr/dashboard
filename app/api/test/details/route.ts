@@ -4,6 +4,16 @@ import { getSystemAdapter } from '@/lib/systems/resolver';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
+
+        // SECURITY: Override userId from Session Cookie
+        const { cookies } = await import('next/headers');
+        const cookieStore = await cookies();
+        const userCookie = cookieStore.get('dashboard_user');
+        const secureUser = userCookie?.value || "";
+        if (secureUser) {
+            body.userId = secureUser;
+        }
+
         const { system } = body;
 
         console.log(`[API] Fetching details for ${system || 'Default'}`);

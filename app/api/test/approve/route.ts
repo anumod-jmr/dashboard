@@ -4,6 +4,20 @@ import { getSystemAdapter } from '@/lib/systems/resolver';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
+
+        // SECURITY: Override userId from Session Cookie
+        const { cookies } = await import('next/headers');
+        const cookieStore = await cookies();
+        const userCookie = cookieStore.get('dashboard_user');
+        const secureUser = userCookie?.value || "";
+
+        if (secureUser) {
+            console.log(`[Security] Overriding request user '${body.userId}' with session user '${secureUser}'`);
+            body.userId = secureUser;
+        } else {
+            console.warn("[Security] No session user found. Proceeding with body user (Legacy/Fallout).");
+        }
+
         console.log("Approve Request Body:", body);
 
         const { system } = body;

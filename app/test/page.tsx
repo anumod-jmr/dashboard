@@ -25,10 +25,8 @@ interface Approval {
 }
 
 function TestCockpitContent() {
-    const searchParams = useSearchParams();
-    // Get user from URL (e.g. ?user=ALLU) or fallback to config/default
-    const initialUser = searchParams.get('user') || "TRAINEE2";
-    const [activeUser, setActiveUser] = useState(initialUser);
+    // const searchParams = useSearchParams();
+    const [activeUser, setActiveUser] = useState("");
 
     const [approvals, setApprovals] = useState<Approval[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,6 +41,10 @@ function TestCockpitContent() {
     const [isApproving, setIsApproving] = useState(false);
     const firstLoad = useRef(true);
     const prevApprovalsLengthRef = useRef(0);
+
+    // Global Notification Toggle
+    const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(true);
+    const isNotificationsEnabledRef = useRef(true); // Ref to hold fresh state for interval
 
     // Filter State
     const [tempSystem, setTempSystem] = useState('(All)');
@@ -62,7 +64,20 @@ function TestCockpitContent() {
     });
 
     // Ref to hold the active user to avoid stale closures in setInterval
-    const activeUserRef = useRef(initialUser);
+    const activeUserRef = useRef("");
+
+    // Identify User
+    useEffect(() => {
+        fetch('/api/auth/me')
+            .then(res => res.json())
+            .then(data => {
+                if (data.user) {
+                    setActiveUser(data.user);
+                    activeUserRef.current = data.user;
+                }
+            })
+            .catch(err => console.error("Auth check failed", err));
+    }, []);
 
 
     // Derived state for charts
@@ -225,7 +240,7 @@ function TestCockpitContent() {
                     // 2. Strict Detection: Only notify if we have actual NEW IDs
                     const hasNewContent = newItems.length > 0;
 
-                    if (hasNewContent) {
+                    if (isNotificationsEnabledRef.current && hasNewContent) {
                         // Play Sound & Visual Effect
                         playNotificationSound();
                         setIsShaking(true);
@@ -246,8 +261,10 @@ function TestCockpitContent() {
                                 } as any);
                             }).catch(err => console.error("SW Notification failed", err));
                         }
+                    }
 
-                        // Add to notifications dropdown
+                    // Always add to notification history/badge, even if "Alerts" are off
+                    if (hasNewContent) {
                         const newNotifs = newItems.map((item: Approval) => ({
                             id: Math.random().toString(36).substr(2, 9),
                             text: `New request with Reference ID ${item.txnId}`,
@@ -288,10 +305,12 @@ function TestCockpitContent() {
     }
 
     useEffect(() => {
-        loadApprovals();
+        if (activeUser) {
+            loadApprovals();
+        }
         const interval = setInterval(loadApprovals, 5000);
         return () => clearInterval(interval);
-    }, []);
+    }, [activeUser]);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('en-US', {
@@ -462,7 +481,8 @@ function TestCockpitContent() {
                     brn,
                     acc,
                     ejLogId: txn.ejLogId,
-                    system: txn.sourceSystem
+                    system: txn.sourceSystem,
+                    userId: activeUser
                 })
             });
 
@@ -553,6 +573,10 @@ function TestCockpitContent() {
     };
 
 
+
+
+    // ... existing code ...
+
     return (
         <div className="min-h-screen flex flex-col bg-[#f3f4f6]">
             {/* Top Header */}
@@ -574,6 +598,24 @@ function TestCockpitContent() {
                                 {activeUser.substring(0, 2).toUpperCase()}
                             </div>
                         </div>
+                        <div className="flex items-center gap-3 mr-2">
+                            <label className="relative inline-flex items-center cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={isNotificationsEnabled}
+                                    onChange={(e) => {
+                                        setIsNotificationsEnabled(e.target.checked);
+                                        isNotificationsEnabledRef.current = e.target.checked;
+                                    }}
+                                />
+                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
+                                <span className="ml-2 text-xs font-bold text-slate-500 uppercase tracking-wide group-hover:text-blue-600 transition-colors hidden sm:block">
+                                    {isNotificationsEnabled ? 'Alerts On' : 'Alerts Off'}
+                                </span>
+                            </label>
+                        </div>
+
                         <div className="relative">
                             <button
                                 onClick={() => {

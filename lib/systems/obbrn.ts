@@ -5,11 +5,11 @@ import { httpClient } from '../http-client';
 export class ObbrnAdapter implements SystemAdapter {
 
     async fetchDetails(params: any): Promise<ApprovalDetails> {
-        const { ejLogId, brn } = params;
+        const { ejLogId, brn, userId } = params;
         if (!ejLogId) throw new Error("Missing EJ Log ID for OBBRN details");
 
-        // 1. Authenticate for View
-        const token = await this.authenticate(config.obbrn.appIdView, brn || '000');
+        // 1. Authenticate for View (Using dynamic User or fallback)
+        const token = await this.authenticate(config.obbrn.appIdView, brn || '000', userId);
 
         // 2. Fetch Details
         const detailsUrl = `${config.obbrn.ejLogUrl}?EJLogId=${ejLogId}`;
@@ -20,11 +20,10 @@ export class ObbrnAdapter implements SystemAdapter {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
-                // Correct AppID for Details Fetch as per legacy logic
                 'appId': 'SRVCMNTXN',
                 'branchCode': brn || '000',
                 'entityId': config.obbrn.entityId,
-                'userId': config.obbrn.defaultUser,
+                'userId': userId || config.obbrn.defaultUser,
             }
         });
 
@@ -59,6 +58,7 @@ export class ObbrnAdapter implements SystemAdapter {
             functionCode: logData.functionCode || "",
             subScreenClass: logData.subScreenClass || "",
             ejId: ejLogId,
+            authorizerRole: "RETAIL_MANAGER",
             txnRefNumber: logData.txnRefNo || logData.txnRefNumber || "",
             supervisorId: params.userId || config.obbrn.defaultUser
         };
