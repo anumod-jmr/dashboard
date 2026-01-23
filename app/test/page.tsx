@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from '../context/UserContext';
 import { useSearchParams } from 'next/navigation';
 
 import { useEffect, useState, useRef, Suspense } from "react";
@@ -26,7 +27,9 @@ interface Approval {
 
 function TestCockpitContent() {
     // const searchParams = useSearchParams();
-    const [activeUser, setActiveUser] = useState("");
+
+    // NEW: Use Global User Context
+    const { user: activeUser } = useUser();
 
     const [approvals, setApprovals] = useState<Approval[]>([]);
     const [loading, setLoading] = useState(true);
@@ -62,22 +65,6 @@ function TestCockpitContent() {
         branch: '(All)',
         status: '(Pending)'
     });
-
-    // Ref to hold the active user to avoid stale closures in setInterval
-    const activeUserRef = useRef("");
-
-    // Identify User
-    useEffect(() => {
-        fetch('/api/auth/me')
-            .then(res => res.json())
-            .then(data => {
-                if (data.user) {
-                    setActiveUser(data.user);
-                    activeUserRef.current = data.user;
-                }
-            })
-            .catch(err => console.error("Auth check failed", err));
-    }, []);
 
 
     // Derived state for charts
@@ -215,7 +202,7 @@ function TestCockpitContent() {
             if (status !== '(Pending)' && status !== '(All)') queryParams.append('status', status);
 
             // Append current user for OBBRN filtering
-            if (activeUserRef.current) queryParams.append('user', activeUserRef.current);
+            if (activeUser) queryParams.append('user', activeUser);
 
             const res = await fetch(`/api/test?${queryParams.toString()}`, { cache: "no-store" });
             const data = await res.json();
@@ -595,7 +582,7 @@ function TestCockpitContent() {
                                 <div className="text-xs text-slate-400">Logged in User</div>
                             </div>
                             <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold border-2 border-white/10 shadow-sm">
-                                {activeUser.substring(0, 2).toUpperCase()}
+                                {(activeUser || "?").substring(0, 2).toUpperCase()}
                             </div>
                         </div>
                         <div className="flex items-center gap-3 mr-2">
