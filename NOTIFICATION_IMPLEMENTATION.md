@@ -1,61 +1,59 @@
 # Notification System Implementation Guide
 
 ## Overview
-This document outlines the final implementation of the notification system for the JMR Unified Dashboard. The system provides real-time alerts for new approval requests, functioning effectively both when the user is active and when the browser is minimized.
+This document outlines the final implementation of the notification system for the JMR Unified Dashboard. It uses a **Service Worker** and **VAPID Keys** to support robust Web Push Notifications.
 
 ## Core Features
 
-### 1. Robust Alerting (Two Modes)
+### 1. Zero-Click Setup
+*   **Automatic Detection**: The dashboard automatically detects if the user has granted notification permissions via the browser's native settings (Lock/Eye icon).
+*   **Instant Subscription**: As soon as permission is detected as `granted`, the system silently subscribes the user to the push service in the background. Does not require a manual "Subscribe" button.
+
+### 2. Robust Alerting (Two Modes)
 *   **Active Dashboard**:
     *   **Visual**: The Bell Icon shakes and displays a red badge count.
-    *   **Audio**: A "Ding-Dong" chime plays (requires user interaction unlock).
+    *   **Audio**: A "Ding-Dong" chime plays.
 *   **Background / Minimized**:
     *   **System Toast**: A native Windows notification appears via the Browser's Service Worker.
-    *   **Persistent**: The notification is configured to stay on screen (`requireInteraction: true`) until the user dismisses it.
-    *   **Urgent**: It triggers a sound/vibrate event every time (`renotify: true`), ensuring new items are not missed.
+    *   **Persistent**: The notification stays on screen (`requireInteraction: true`) until missed.
+    *   **Urgent**: It triggers sound/vibrate (`renotify: true`) for every new event.
 
-### 2. Instant Polling
-*   The dashboard polls the backend API every **3 seconds** (previously 10s).
-*   This ensures near-instant notification delivery when new transaction data hits the database.
+## Technical Architecture
 
-### 3. Implementation Details
+### **1. Key Management (VAPID)**
+*   **Public Key**: Stored in `.env.local`. Shared with the browser to identify the application.
+*   **Private Key**: Stored securely on the backend (not visible to users). Used to cryptographically "sign" alerts so browsers know they are legitimate.
+*   **Keys Generation**: Keys are generated once and do not rotate unless manually reset.
 
-#### **Service Worker (`public/sw.js`)**
-*   Handles the background `push` events.
-*   Manages the `notificationclick` event to focus the dashboard tab when the user clicks the alert.
+### **2. Service Worker (`public/sw.js`)**
+*   **Purpose**: A script that runs in the background, independent of the web page.
+*   **Push Event**: Listens for the `push` signal from the message server (e.g., Firebase/Mozilla) and displays the notification.
+*   **Click Event**: Handles `notificationclick` to waken the tab or open a new window when the user clicks the alert.
 
-#### **Frontend Logic (`app/test/page.tsx`)**
-*   **Detection**: Compares incoming Transaction IDs against a tracked set of "Seen IDs".
-*   **Trigger**:
-    *   If `New ID` found -> Trigger Alert.
-    *   If `Count` increases (without specific ID) -> Trigger Fallback Alert.
-*   **Configuration**:
-    ```javascript
-    reg.showNotification("Time for new update", {
-        body: "New approval requests pending",
-        icon: "/jmr-logo.png",
-        tag: "jmr-approval",    // Groups notifications
-        renotify: true,         // Alerts again for new data
-        requireInteraction: true // Sticky (won't auto-close)
-    });
-    ```
+### **3. Frontend Logic (`ServiceWorkerManager.tsx`)**
+*   **Permission Monitoring**: Uses the Permission API to listen for changes.
+    *   *Scenario*: User changes setting from "Block" -> "Allow".
+    *   *Action*: Component detects change -> Registration -> Subscription -> Success.
+*   **Subscription**: Generates a unique endpoint for that specific browser instance and logs it (Future: Sends to backend).
 
-#### **Backend (`app/api/test/route.ts`)**
-*   **Status**: Production Ready.
-*   **Mock Data**: Detection logic supports dynamic IDs, but all simulation/mock data generation has been removed. The system expects real data from the backend integration.
+## Usage Guide
 
-## Usage & Limitations
+### **Enabling Alerts**
+1.  **Click the Lock Icon (🔒)** in the browser address bar.
+2.  Find **Notifications** and select **Allow**.
+3.  **Done**. The system will automatically detect this change and register you for alerts.
 
-### **1. Enable Alerts**
-*   On first load, the user must click the **"Enable Alerts"** button (top right header) to grant browser permissions. This is a one-time requirement.
-
-### **2. Minimized vs. Closed**
-*   **Minimized**: ✅ **WORKS**. If the browser window is minimized to the taskbar or hidden behind other apps (Excel/Outlook), the Service Worker will still fire the Toast Notification.
-*   **Closed**: ❌ **DOES NOT WORK**. If the browser tab or the entire browser application is Quit/Closed, the polling script stops running. The tab **must be open** (even if hidden) for notifications to function.
+### **Browser State**
+*   **Active Tab**: ✅ Alerts via Bell Icon & Toast.
+*   **Minimized / Hidden**: ✅ Alerts via System Toast.
+*   **Closed Tab**: ⚠️ Requires Backend Push Integration.
+    *   *Current State*: Polling stops if tab is closed.
+    *   *Future State*: With full backend integration (sending Push messages to the saved Subscription endpoint), alerts **WILL** work even if the tab is completely closed.
 
 ## Critical Setup
-*   Ensure **`public/jmr-logo.png`** exists for the notification icon to render correctly.
-*   Ensure Windows **Focus Assist / Do Not Disturb** is OFF to see the toasts immediately.
+*   **Environment**: `.env.local` must contain a valid `NEXT_PUBLIC_VAPID_PUBLIC_KEY`.
+*   **Assets**: Ensure `public/jmr-logo.png` exists for the notification icon.
+*   **OS Settings**: Windows **Focus Assist / Do Not Disturb** must be OFF.
 
 ---
-*Last Updated: Dec 2025*
+*Last Updated: 2026-01-19*
