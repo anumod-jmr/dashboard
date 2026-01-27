@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from '../context/UserContext';
 import { useSearchParams } from 'next/navigation';
 
 import { useEffect, useState, useRef, Suspense } from "react";
@@ -26,7 +27,9 @@ interface Approval {
 
 function TestCockpitContent() {
     // const searchParams = useSearchParams();
-    const [activeUser, setActiveUser] = useState("");
+
+    // NEW: Use Global User Context
+    const { user: activeUser } = useUser();
 
     const [approvals, setApprovals] = useState<Approval[]>([]);
     const [loading, setLoading] = useState(true);
@@ -62,22 +65,6 @@ function TestCockpitContent() {
         branch: '(All)',
         status: '(Pending)'
     });
-
-    // Ref to hold the active user to avoid stale closures in setInterval
-    const activeUserRef = useRef("");
-
-    // Identify User
-    useEffect(() => {
-        fetch('/api/auth/me')
-            .then(res => res.json())
-            .then(data => {
-                if (data.user) {
-                    setActiveUser(data.user);
-                    activeUserRef.current = data.user;
-                }
-            })
-            .catch(err => console.error("Auth check failed", err));
-    }, []);
 
 
     // Derived state for charts
@@ -215,7 +202,7 @@ function TestCockpitContent() {
             if (status !== '(Pending)' && status !== '(All)') queryParams.append('status', status);
 
             // Append current user for OBBRN filtering
-            if (activeUserRef.current) queryParams.append('user', activeUserRef.current);
+            if (activeUser) queryParams.append('user', activeUser);
 
             const res = await fetch(`/api/test?${queryParams.toString()}`, { cache: "no-store" });
             const data = await res.json();
@@ -382,13 +369,19 @@ function TestCockpitContent() {
                 setShowDetailsModal(false); // Close modal only on success
                 loadApprovals();
             } else {
-                alert(`Approval Failed: ${result.error || "Unknown error"}`);
-                if (result.details) console.error(result.details);
+                // Check for session expiry
+                if (result.sessionExpired) {
+                    alert("⚠️ Session Expired\n\nYour session has expired. Please close this dashboard and reopen it from FlexCube to continue.");
+                    setShowDetailsModal(false);
+                } else {
+                    alert(`Approval Failed: ${result.error || "Unknown error"}`);
+                    if (result.details) console.error(result.details);
+                }
             }
         } catch (error) {
             console.error("Approval error:", error);
-            alert("An error occurred during approval.");
-            setDetailsData({ error: "An error occurred while fetching details." });
+            alert("An error occurred during approval. Please try again.");
+            setDetailsData({ error: "An error occurred while processing approval." });
         } finally {
             setIsApproving(false);
             setLoadingDetails(false);
@@ -499,7 +492,16 @@ function TestCockpitContent() {
 
                 setDetailsData(flatList); // Store ALL data
             } else {
-                setDetailsData({ error: result.error || "Failed to fetch details", details: result.details });
+                // Check if session expired
+                if (result.sessionExpired) {
+                    setDetailsData({
+                        error: result.error || "Session expired",
+                        sessionExpired: true,
+                        userMessage: result.userMessage || "Please close and reopen from FlexCube."
+                    });
+                } else {
+                    setDetailsData({ error: result.error || "Failed to fetch details", details: result.details });
+                }
             }
         } catch (error) {
             console.error("Details error:", error);
@@ -595,7 +597,7 @@ function TestCockpitContent() {
                                 <div className="text-xs text-slate-400">Logged in User</div>
                             </div>
                             <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold border-2 border-white/10 shadow-sm">
-                                {activeUser.substring(0, 2).toUpperCase()}
+                                {(activeUser || "?").substring(0, 2).toUpperCase()}
                             </div>
                         </div>
                         <div className="flex items-center gap-3 mr-2">
@@ -957,19 +959,36 @@ function TestCockpitContent() {
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-fade-in-up border border-gray-100">
                         <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl">
                             <div>
-                                <h3 className="font-bold text-lg text-slate-800">Transaction Changes</h3>
-                                <p className="text-xs text-slate-500">Review modifications before approval</p>
+                                {detailsData?.sessionExpired ? (
+                                    <>
+                                        <h3 className="font-bold text-lg text-slate-800">Session Error</h3>
+                                        <p className="text-xs text-slate-500">Authentication required</p>
+                                    </>
+                                ) : detailsData?.error ? (
+                                    <>
+                                        <h3 className="font-bold text-lg text-slate-800">Error</h3>
+                                        <p className="text-xs text-slate-500">Unable to load transaction</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h3 className="font-bold text-lg text-slate-800">Transaction Changes</h3>
+                                        <p className="text-xs text-slate-500">Review modifications before approval</p>
+                                    </>
+                                )}
                             </div>
                             <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2 mr-2">
-                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Show All Fields</span>
-                                    <div
-                                        onClick={() => setShowAllFields(!showAllFields)}
-                                        className={`w-10 h-5 flex items-center bg-gray-300 rounded-full p-1 cursor-pointer transition-colors duration-300 ${showAllFields ? 'bg-blue-600' : ''}`}
-                                    >
-                                        <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform duration-300 ${showAllFields ? 'translate-x-5' : ''}`}></div>
+                                {/* Only show toggle when not session expired */}
+                                {!detailsData?.sessionExpired && !detailsData?.error && (
+                                    <div className="flex items-center gap-2 mr-2">
+                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Show All Fields</span>
+                                        <div
+                                            onClick={() => setShowAllFields(!showAllFields)}
+                                            className={`w-10 h-5 flex items-center bg-gray-300 rounded-full p-1 cursor-pointer transition-colors duration-300 ${showAllFields ? 'bg-blue-600' : ''}`}
+                                        >
+                                            <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform duration-300 ${showAllFields ? 'translate-x-5' : ''}`}></div>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                                 <button
                                     onClick={() => setShowDetailsModal(false)}
                                     className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
@@ -986,6 +1005,49 @@ function TestCockpitContent() {
                                 <div className="flex flex-col items-center justify-center py-12 gap-3">
                                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                                     <span className="text-sm text-slate-500 font-medium">Loading details...</span>
+                                </div>
+                            ) : detailsData?.sessionExpired ? (
+                                /* Session Expired Error */
+                                <div className="flex flex-col items-center justify-center py-12 gap-4">
+                                    <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center">
+                                        <svg className="w-8 h-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                    </div>
+                                    <div className="text-center">
+                                        <h4 className="text-lg font-bold text-slate-800 mb-2">Session Expired</h4>
+                                        <p className="text-sm text-slate-600 max-w-sm">
+                                            {detailsData.userMessage || "Your session has expired. Please close and reopen from FlexCube."}
+                                        </p>
+                                    </div>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-2 max-w-md">
+                                        <div className="flex gap-3">
+                                            <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <div className="text-sm text-blue-800">
+                                                <p className="font-semibold mb-1">How to fix:</p>
+                                                <ol className="list-decimal list-inside space-y-1 text-blue-700">
+                                                    <li>Close this dashboard window</li>
+                                                    <li>Go back to FlexCube</li>
+                                                    <li>Reopen the Unified Dashboard</li>
+                                                </ol>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : detailsData?.error ? (
+                                /* General Error */
+                                <div className="flex flex-col items-center justify-center py-12 gap-4">
+                                    <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center">
+                                        <svg className="w-7 h-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </div>
+                                    <div className="text-center">
+                                        <h4 className="text-lg font-bold text-slate-800 mb-2">Unable to Load Details</h4>
+                                        <p className="text-sm text-slate-600 max-w-sm">{detailsData.error}</p>
+                                    </div>
                                 </div>
                             ) : getVisibleDetails().length > 0 ? (
                                 /* Consolidated Flat View */
@@ -1014,31 +1076,44 @@ function TestCockpitContent() {
                         </div>
 
                         <div className="p-4 border-t border-gray-100 flex justify-end bg-gray-50/50 rounded-b-xl gap-3">
-                            <button
-                                onClick={() => setShowDetailsModal(false)}
-                                className="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-slate-700 rounded-lg font-bold text-sm transition-all shadow-sm"
-                            >
-                                Close
-                            </button>
-                            <button
-                                disabled={isApproving}
-                                onClick={() => handleApprove()}
-                                className={`px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2 ${isApproving ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                {isApproving ? (
-                                    <>
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                        Approving...
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                        Approve Now
-                                    </>
-                                )}
-                            </button>
+                            {detailsData?.sessionExpired ? (
+                                /* Session expired - only show OK button */
+                                <button
+                                    onClick={() => setShowDetailsModal(false)}
+                                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm transition-all shadow-md"
+                                >
+                                    OK
+                                </button>
+                            ) : (
+                                /* Normal state - show Close and Approve buttons */
+                                <>
+                                    <button
+                                        onClick={() => setShowDetailsModal(false)}
+                                        className="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-slate-700 rounded-lg font-bold text-sm transition-all shadow-sm"
+                                    >
+                                        Close
+                                    </button>
+                                    <button
+                                        disabled={isApproving}
+                                        onClick={() => handleApprove()}
+                                        className={`px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-sm transition-all shadow-md hover:shadow-lg flex items-center gap-2 ${isApproving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        {isApproving ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                Approving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                Approve Now
+                                            </>
+                                        )}
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>

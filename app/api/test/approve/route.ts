@@ -33,6 +33,25 @@ export async function POST(request: Request) {
 
     } catch (error: any) {
         console.error("Approval workflow error:", error);
+
+        // Check for session expiry / authentication errors
+        const errorMsg = error.message || "";
+        const isSessionExpired =
+            errorMsg.includes('401') ||
+            errorMsg.includes('Unauthorized') ||
+            errorMsg.includes('Bad Credentials') ||
+            errorMsg.includes('Bad Token') ||
+            errorMsg.includes('Session token expired') ||
+            errorMsg.includes('re-authenticate');
+
+        if (isSessionExpired) {
+            return NextResponse.json({
+                error: "Your session has expired or become invalid.",
+                sessionExpired: true,
+                userMessage: "Please close this dashboard and reopen it from FlexCube to continue."
+            }, { status: 401 });
+        }
+
         return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
     }
 }

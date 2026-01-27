@@ -1,0 +1,104 @@
+
+[API] Sample OBBRN Authoriser: "RETAIL_MANAGER"
+[API] OBBRN[0] Auth: RETAIL_MANAGER | Maker: USER01
+ GET /api/test?user=USER01 200 in 114ms (compile: 3ms, render: 112ms)
+[API] User Param: "USER01"
+[API] Backend returned 1 records.
+[API] OBBRN Records count: 1
+[API] Sample OBBRN Authoriser: "RETAIL_MANAGER"
+[API] OBBRN[0] Auth: RETAIL_MANAGER | Maker: USER01
+ GET /api/test?user=USER01 200 in 107ms (compile: 3ms, render: 103ms)
+[API] Fetching details for OBBRN
+[PlatoBootstrap] Already initialized for SECSRV001, skipping...
+[TokenManager] Using cached token for SECSRV001
+[TokenManager] Using cached token for SECSRV001_JWT
+[OBBRN] Using JWT token for API call (attempt 1)
+[OBBRN] Fetching details from https://10.64.90.35:8112/api-gateway/obremo-srv-cmn-transaction-services/obremo-srv-cmn-transaction-services/web/v1/logging/getEJLogById?EJLogId=1464998871645843456 (attempt 1)
+ POST /api/test/details 200 in 49ms (compile: 4ms, render: 45ms)
+[API] User Param: "USER01"
+[API] Backend returned 1 records.
+[API] OBBRN Records count: 1
+[API] Sample OBBRN Authoriser: "RETAIL_MANAGER"
+[API] OBBRN[0] Auth: RETAIL_MANAGER | Maker: USER01
+ GET /api/test?user=USER01 200 in 103ms (compile: 3ms, render: 100ms)
+[Security] Overriding request user 'USER01' with session user 'USER01'
+Approve Request Body: {
+  brn: '000',
+  acc: '10356550001',
+  ejLogId: '1464998871645843456',
+  system: 'OBBRN',
+  userId: 'USER01'
+}
+Delegating APPROVE action to OBBRN adapter...
+[PlatoBootstrap] Already initialized for SECSRV001, skipping...
+[TokenManager] Using cached token for SECSRV001
+[TokenManager] Using cached token for SECSRV001_JWT
+[OBBRN] Using JWT token for API call (attempt 1)
+[OBBRN] Fetching details from https://10.64.90.35:8112/api-gateway/obremo-srv-cmn-transaction-services/obremo-srv-cmn-transaction-services/web/v1/logging/getEJLogById?EJLogId=1464998871645843456 (attempt 1)
+[OBBRN] Constructed Payload: {
+  functionCode: '1401',
+  subScreenClass: '1401',
+  ejId: '1464998871645843456',
+  authorizerRole: 'RETAIL_MANAGER',
+  txnRefNumber: '0002602200017495',
+  supervisorId: 'USER01'
+}
+[PlatoBootstrap] Initializing API Gateway session for SRVBRANCHCOMMON...
+[TokenManager] Using universal handoff token for SRVBRANCHCOMMON
+[PlatoBootstrap] Calling http://10.64.90.35:7103/api-gateway/platojwtauth
+[PlatoBootstrap] Failed for SRVBRANCHCOMMON: Error: [PlatoBootstrap] Failed with status 401: {"messages":{"keyId": null,"status": "FAILURE","codes": [{"code": "PLATO-SEC-005","desc": "Error while connecting to Callback Authentication Provider to validate token","type": "E","language": "ENG","override": false,"information": false,"error": true}],"requestId": null,"httpStatusCode": 401,"data": null}}
+    at performBootstrap (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/lib/systems/plato-bootstrap.ts:125:15)
+    at async ensurePlatoBootstrap (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/lib/systems/plato-bootstrap.ts:67:9)
+    at async ObbrnAdapter.ensureBootstrap (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/lib/systems/obbrn.ts:25:13)
+    at async ObbrnAdapter.handleApprove (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/lib/systems/obbrn.ts:162:9)
+    at async POST (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/app/api/test/approve/route.ts:30:24)
+  123 |     if (!response.ok) {
+  124 |         const errorText = await response.text().catch(() => 'Unable to read error');
+> 125 |         throw new Error(`[PlatoBootstrap] Failed with status ${response.status}: ${errorText}`);
+      |               ^
+  126 |     }
+  127 |
+  128 |     // Parse response to extract any tokens or session info
+[OBBRN] Bootstrap failed: Error: [PlatoBootstrap] Failed with status 401: {"messages":{"keyId": null,"status": "FAILURE","codes": [{"code": "PLATO-SEC-005","desc": "Error while connecting to Callback Authentication Provider to validate token","type": "E","language": "ENG","override": false,"information": false,"error": true}],"requestId": null,"httpStatusCode": 401,"data": null}}
+    at performBootstrap (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/lib/systems/plato-bootstrap.ts:125:15)
+    at async ensurePlatoBootstrap (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/lib/systems/plato-bootstrap.ts:67:9)
+    at async ObbrnAdapter.ensureBootstrap (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/lib/systems/obbrn.ts:25:13)
+    at async ObbrnAdapter.handleApprove (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/lib/systems/obbrn.ts:162:9)
+    at async POST (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/app/api/test/approve/route.ts:30:24)
+  123 |     if (!response.ok) {
+  124 |         const errorText = await response.text().catch(() => 'Unable to read error');
+> 125 |         throw new Error(`[PlatoBootstrap] Failed with status ${response.status}: ${errorText}`);
+      |               ^
+  126 |     }
+  127 |
+  128 |     // Parse response to extract any tokens or session info
+[OBBRN] Continuing without bootstrap - API call may fail.
+[TokenManager] Using cached token for SRVBRANCHCOMMON
+[TokenManager] Using universal handoff token for SRVBRANCHCOMMON_JWT
+[OBBRN] Using JWT token for approval call
+[OBBRN] Sending Approval to https://10.64.90.35:8112/api-gateway/obremo-srv-bcn-branchcommon-services/obremo-srv-bcn-branchcommon-services/authorizerApprove
+[HttpClient] Request failed to https://10.64.90.35:8112/api-gateway/obremo-srv-bcn-branchcommon-services/obremo-srv-bcn-branchcommon-services/authorizerApprove Error: HTTP Error 400: Bad Request - {"data":null,"errors":[{"code":"RM-BC-VM-02","description":"Maker Cannot Approve","type":"E","language":"ENG"}],"warnings":null,"informations":null,"authorizations":null,"paging":null}
+    at httpClient (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/lib/http-client.ts:38:19)
+    at async ObbrnAdapter.handleApprove (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/lib/systems/obbrn.ts:196:26)
+    at async POST (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/app/api/test/approve/route.ts:30:24)
+  36 |                 errorDetails = 'Unable to read error body';
+  37 |             }
+> 38 |             throw new Error(`HTTP Error ${response.status}: ${response.statusText} - ${errorDetails}`);
+     |                   ^
+  39 |         }
+  40 |
+  41 |         // Handle empty responses or non-json gracefully if needed, for now assume JSON
+Approval workflow error: Error: HTTP Error 400: Bad Request - {"data":null,"errors":[{"code":"RM-BC-VM-02","description":"Maker Cannot Approve","type":"E","language":"ENG"}],"warnings":null,"informations":null,"authorizations":null,"paging":null}
+    at httpClient (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/lib/http-client.ts:38:19)
+    at async ObbrnAdapter.handleApprove (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/lib/systems/obbrn.ts:196:26)
+    at async POST (file:/u01/Dashboard_sources/UNIFIED_DASHBOARD/dashboard/app/api/test/approve/route.ts:30:24)
+  36 |                 errorDetails = 'Unable to read error body';
+  37 |             }
+> 38 |             throw new Error(`HTTP Error ${response.status}: ${response.statusText} - ${errorDetails}`);
+     |                   ^
+  39 |         }
+  40 |
+  41 |         // Handle empty responses or non-json gracefully if needed, for now assume JSON
+ POST /api/test/approve 500 in 493ms (compile: 122ms, render: 371ms)
+[API] User Param: "USER01"
+[API] Backend returned 1 records.
