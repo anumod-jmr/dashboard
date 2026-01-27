@@ -7,16 +7,34 @@ export async function POST(request: Request) {
         // Read text first to handle multiple content types safely
         const bodyText = await request.text();
         let username: string | null = null;
+        let token: string | null = null;
+        let appId: string | null = null;
 
         // 1. Try JSON parsing
         try {
             const json = JSON.parse(bodyText);
-            username = json.username || json.userId; // Accept userId as well
+            username = json.username || json.userId;
+            token = json.token;
+            appId = json.appId;
         } catch {
-            // 2. Fallback to URLSearchParams (for application/x-www-form-urlencoded)
-            // e.g., "userId=USER01"
+            // 2. Fallback to URLSearchParams
             const params = new URLSearchParams(bodyText);
-            username = params.get('UserId') || params.get('userId');
+            username = params.get('username') || params.get('userId') || params.get('UserId');
+            token = params.get('token');
+            appId = params.get('appId');
+        }
+
+        // Log what we received for debugging
+        console.log(`[Login] Received: userId=${username}, token=${token ? 'present(' + token.length + ' chars)' : 'MISSING'}, appId=${appId || 'MISSING'}`);
+
+        if (token && appId) {
+            // Store the Hand-off token!
+            const { PlatoTokenManager } = await import('@/lib/systems/token-manager');
+            PlatoTokenManager.setToken(appId, token);
+            console.log(`[Login] Stored callback token for ${appId}`);
+        } else {
+            console.warn(`[Login] WARNING: Token handoff incomplete. token=${!!token}, appId=${!!appId}`);
+            console.warn(`[Login] OBBRN API Gateway calls may fail. Check LauncherController PLATO.jsp scraping.`);
         }
 
         if (!username) {

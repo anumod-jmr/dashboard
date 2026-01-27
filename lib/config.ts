@@ -15,6 +15,7 @@ export const config = {
     },
     obbrn: {
         authUrl: process.env.OBBRN_AUTH_URL || '',
+        platoUrl: process.env.PLATO_URL || 'https://10.64.90.34:8102/FCJNeoWeb/PLATO.jsp?platoframeCnt=1',
         ejLogUrl: process.env.OBBRN_EJ_LOG_URL || '',
         approveUrl: process.env.OBBRN_APPROVE_URL || '',
         defaultUser: process.env.OBBRN_USERNAME || '',
